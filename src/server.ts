@@ -3,8 +3,8 @@ var http = require('http');
 var https = require('https');
 var express = require('express');
 var url = require('url');
-var io = require('socket.io');
-import { Log } from './log';
+const io = require('socket.io');
+import {Log} from './log';
 
 export class Server {
     /**
@@ -24,7 +24,8 @@ export class Server {
     /**
      * Create a new server instance.
      */
-    constructor(private options) { }
+    constructor(private options) {
+    }
 
     /**
      * Start the Socket.io server.
@@ -32,14 +33,11 @@ export class Server {
      * @return {void}
      */
     init(): Promise<any> {
-        return new Promise((resolve, reject) => {
-            this.serverProtocol().then(() => {
-                let host = this.options.host || 'localhost';
-                Log.success(`Running at ${host} on port ${this.getPort()}`);
-
-                resolve(this.io);
-            }, error => reject(error));
-        });
+        return this.serverProtocol().then(() => {
+            let host = this.options.host || 'localhost';
+            Log.success(`Running at ${host} on port ${this.getPort()}`);
+            return this.io;
+        })
     }
 
     /**
@@ -98,25 +96,23 @@ export class Server {
      * @return {any}
      */
     httpServer(secure: boolean) {
+        let httpServer;
         this.express = express();
         this.express.use((req, res, next) => {
-            for (var header in this.options.headers) {
+            for (const header in this.options.headers) {
                 res.setHeader(header, this.options.headers[header]);
             }
             next();
         });
 
-        if (secure) {
-            var httpServer = https.createServer(this.options, this.express);
-        } else {
-            var httpServer = http.createServer(this.express);
-        }
+        httpServer = secure ? https.createServer(this.options, this.express)
+            : http.createServer(this.express);
 
         httpServer.listen(this.getPort(), this.options.host);
 
         this.authorizeRequests();
 
-        return this.io = io(httpServer, this.options.socketio);
+        return this.io = new io.Server(httpServer, this.options.socketio);
     }
 
     /**
@@ -180,8 +176,10 @@ export class Server {
             return req.headers.authorization.replace('Bearer ', '');
         }
 
-        if (url.parse(req.url, true).query.auth_key) {
-            return url.parse(req.url, true).query.auth_key
+        let url = new URL(req.url);
+        let auth_key = url.searchParams.get('auth_key')
+        if (auth_key) {
+            return auth_key
         }
 
         return false;
@@ -197,7 +195,7 @@ export class Server {
      */
     unauthorizedResponse(req: any, res: any): boolean {
         res.statusCode = 403;
-        res.json({ error: 'Unauthorized' });
+        res.json({error: 'Unauthorized'});
 
         return false;
     }

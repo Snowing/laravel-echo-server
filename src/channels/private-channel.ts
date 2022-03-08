@@ -1,14 +1,13 @@
-let request = require('request');
+let axios = require('axios');
 let url = require('url');
-import { Channel } from './channel';
-import { Log } from './../log';
+import {Log} from './../log';
 
 export class PrivateChannel {
     /**
      * Create a new private channel instance.
      */
     constructor(private options: any) {
-        this.request = request;
+        this.request = axios.create({});
     }
 
     /**
@@ -22,7 +21,7 @@ export class PrivateChannel {
     authenticate(socket: any, data: any): Promise<any> {
         let options = {
             url: this.authHost(socket) + this.options.authEndpoint,
-            form: { channel_name: data.channel },
+            form: {channel_name: data.channel},
             headers: (data.auth && data.auth.headers) ? data.auth.headers : {},
             rejectUnauthorized: false
         };
@@ -57,7 +56,8 @@ export class PrivateChannel {
                     authHostSelected = `${referer.protocol}//${referer.host}`;
                     break;
                 }
-            };
+            }
+            ;
         }
 
         if (this.options.devMode) {
@@ -80,40 +80,48 @@ export class PrivateChannel {
      * Send a request to the server.
      */
     protected serverRequest(socket: any, options: any): Promise<any> {
-        return new Promise<any>((resolve, reject) => {
-            options.headers = this.prepareHeaders(socket, options);
-            let body;
+        options.headers = this.prepareHeaders(socket, options);
+        return this.request.post(options.url, options.form, {
+            headers: options.headers
+        }).then((response) => {
+            if (response.statusCode !== 200) {
+                throw {message: "wrong response code", response: response}
+            }
 
-            this.request.post(options, (error, response, body, next) => {
-                if (error) {
-                    if (this.options.devMode) {
-                        Log.error(`[${new Date().toISOString()}] - Error authenticating ${socket.id} for ${options.form.channel_name}`);
-                        Log.error(error);
-                    }
+            if (this.options.devMode) {
+                Log.info(`[${new Date().toISOString()}] - ${socket.id} authenticated for: ${options.form.channel_name}`);
+            }
 
-                    reject({ reason: 'Error sending authentication request.', status: 0 });
-                } else if (response.statusCode !== 200) {
-                    if (this.options.devMode) {
-                        Log.warning(`[${new Date().toISOString()}] - ${socket.id} could not be authenticated to ${options.form.channel_name}`);
-                        Log.error(response.body);
-                    }
-
-                    reject({ reason: 'Client can not be authenticated, got HTTP status ' + response.statusCode, status: response.statusCode });
-                } else {
-                    if (this.options.devMode) {
-                        Log.info(`[${new Date().toISOString()}] - ${socket.id} authenticated for: ${options.form.channel_name}`);
-                    }
-
-                    try {
-                        body = JSON.parse(response.body);
-                    } catch (e) {
-                        body = response.body
-                    }
-
-                    resolve(body);
+            let body = '';
+            try {
+                body = JSON.parse(response.body);
+            } catch (e) {
+                body = response.body
+            }
+            return body;
+        }).catch((error) => {
+            if (error.response && error.response.statusCode !== 200) {
+                let response = error.response;
+                if (this.options.devMode) {
+                    Log.warning(`[${new Date().toISOString()}] - ${socket.id} could not be authenticated to ${options.form.channel_name}`);
+                    Log.error(response.body);
                 }
-            });
+
+                throw({
+                    reason: 'Client can not be authenticated, got HTTP status ' + response.statusCode,
+                    status: response.statusCode
+                });
+            } else {
+
+                if (this.options.devMode) {
+                    Log.error(`[${new Date().toISOString()}] - Error authenticating ${socket.id} for ${options.form.channel_name}`);
+                    Log.error(error);
+                }
+
+                throw({reason: 'Error sending authentication request.', status: 0});
+            }
         });
+
     }
 
     /**

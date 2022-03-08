@@ -68,17 +68,17 @@ export class HttpSubscriber implements Subscriber {
 
         if ((body.channels || body.channel) && body.name && body.data) {
 
-            var data = body.data;
+            let data = body.data;
             try {
                 data = JSON.parse(data);
             } catch (e) { }
 
-            var message = {
+            const message = {
                 event: body.name,
                 data: data,
                 socket: body.socket_id
-            }
-            var channels = body.channels || [body.channel];
+            };
+            const channels = body.channels || [body.channel];
 
             if (this.options.devMode) {
                 Log.info("Channel: " + channels.join(', '));
