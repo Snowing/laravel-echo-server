@@ -1,9 +1,10 @@
-const fs = require("fs");
-const path = require("path");
+import fs from 'fs';
+import path from 'path';
+import inquirer from 'inquirer';
+import crypto from 'crypto';
+import echo from "./../../dist";
+
 const colors = require("colors");
-const echo = require("./../../dist");
-const inquirer = require("inquirer");
-const crypto = require("crypto");
 
 import ErrnoException = NodeJS.ErrnoException;
 
@@ -278,7 +279,7 @@ export class Cli {
             yargs.argv.dir
         );
 
-        fs.access(configFile, fs.F_OK, error => {
+        fs.access(configFile, fs.constants.F_OK, error => {
             if (error) {
                 console.error(
                     colors.error("Error: The config file could not be found.")
