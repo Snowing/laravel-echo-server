@@ -2,8 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import inquirer from 'inquirer';
 import crypto from 'crypto';
-import echo from "./../../dist";
 
+const echo = require("./../../dist");
 const colors = require("colors");
 
 import ErrnoException = NodeJS.ErrnoException;
